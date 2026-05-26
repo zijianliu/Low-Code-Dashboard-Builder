@@ -10,20 +10,24 @@ import { AccessLogService } from '../services/accessLog';
 
 const router = Router();
 
-const idSchema = Joi.object({
-  id: Joi.string().required()
+const dashboardIdSchema = Joi.object({
+  dashboardId: Joi.string().required()
 });
 
 const tokenSchema = Joi.object({
   token: Joi.string().required()
 });
 
+const shareIdSchema = Joi.object({
+  shareId: Joi.string().required()
+});
+
 const shareSchema = Joi.object({
   expiresInHours: Joi.number().integer().min(1).max(8760)
 });
 
-router.post('/:dashboardId', authMiddleware, validateParams(idSchema), validateBody(shareSchema), (req: AuthRequest, res) => {
-  const dashboard = DashboardService.getById(req.params.id, req.user!.id, req.user!.organizationId);
+router.post('/:dashboardId', authMiddleware, validateParams(dashboardIdSchema), validateBody(shareSchema), (req: AuthRequest, res) => {
+  const dashboard = DashboardService.getById(req.params.dashboardId, req.user!.id, req.user!.organizationId);
   if (!dashboard) {
     notFound(res, 'Dashboard not found');
     return;
@@ -35,7 +39,7 @@ router.post('/:dashboardId', authMiddleware, validateParams(idSchema), validateB
   }
 
   const shareLink = ShareService.create(
-    req.params.id,
+    req.params.dashboardId,
     req.user!.id,
     req.body.expiresInHours
   );
@@ -43,8 +47,8 @@ router.post('/:dashboardId', authMiddleware, validateParams(idSchema), validateB
   success(res, shareLink, 'Share link created successfully');
 });
 
-router.get('/:dashboardId', authMiddleware, validateParams(idSchema), (req: AuthRequest, res) => {
-  const dashboard = DashboardService.getById(req.params.id, req.user!.id, req.user!.organizationId);
+router.get('/:dashboardId', authMiddleware, validateParams(dashboardIdSchema), (req: AuthRequest, res) => {
+  const dashboard = DashboardService.getById(req.params.dashboardId, req.user!.id, req.user!.organizationId);
   if (!dashboard) {
     notFound(res, 'Dashboard not found');
     return;
@@ -55,7 +59,7 @@ router.get('/:dashboardId', authMiddleware, validateParams(idSchema), (req: Auth
     return;
   }
 
-  const shareLinks = ShareService.listByDashboardId(req.params.id, req.user!.id);
+  const shareLinks = ShareService.listByDashboardId(req.params.dashboardId, req.user!.id);
   success(res, shareLinks);
 });
 
@@ -131,7 +135,7 @@ router.get('/access/:token', validateParams(tokenSchema), async (req, res) => {
   });
 });
 
-router.get('/:shareId/validate', validateParams(idSchema), (req, res) => {
+router.get('/:shareId/validate', validateParams(shareIdSchema), (req, res) => {
   const shareLink = ShareService.getById(req.params.shareId);
   if (!shareLink) {
     notFound(res, 'Share link not found');

@@ -11,21 +11,19 @@ const api: AxiosInstance = axios.create({
   }
 });
 
-api.interceptors.response.use(
-  (response) => response.data,
-  (error) => {
-    if (axios.isCancel(error)) {
-      return Promise.reject(new Error('Request cancelled'));
-    }
-    return Promise.reject(error);
+function getRequestKey(config: AxiosRequestConfig | undefined): string {
+  if (!config) {
+    return `unknown:${Date.now()}`;
   }
-);
-
-function getRequestKey(config: AxiosRequestConfig): string {
-  return `${config.method}:${config.url}:${JSON.stringify(config.params || {})}:${JSON.stringify(config.data || {})}`;
+  const method = (config.method || 'GET').toUpperCase();
+  const url = config.url || '';
+  return `${method}:${url}:${JSON.stringify(config.params || {})}:${JSON.stringify(config.data || {})}`;
 }
 
 api.interceptors.request.use((config) => {
+  if (!config) {
+    return Promise.reject(new Error('Request config is required'));
+  }
   const key = getRequestKey(config);
   if (pendingRequests.has(key)) {
     pendingRequests.get(key)?.cancel('Duplicate request cancelled');
@@ -38,14 +36,18 @@ api.interceptors.request.use((config) => {
 
 api.interceptors.response.use(
   (response) => {
-    const key = getRequestKey(response.config);
+    const key = getRequestKey(response?.config);
     pendingRequests.delete(key);
-    return response;
+    return response.data;
   },
   (error) => {
-    const key = getRequestKey(error.config);
+    if (axios.isCancel(error)) {
+      return Promise.reject(new Error('Request cancelled'));
+    }
+    const key = getRequestKey(error?.config);
     pendingRequests.delete(key);
-    return Promise.reject(error);
+    const message = error?.response?.data?.error || error?.message || 'Request failed';
+    return Promise.reject(new Error(message));
   }
 );
 
